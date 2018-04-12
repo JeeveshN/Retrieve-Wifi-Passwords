@@ -19,6 +19,7 @@ lib/
 lib64/
 parts/
 sdist/
+.idea/
 var/
 *.egg-info/
 .installed.cfg
@@ -87,3 +88,4 @@ ENV/
 
 # Rope project settings
 .ropeproject
+.idea/inspectionProfiles/Project_Default.xml
