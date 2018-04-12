@@ -1,4 +1,5 @@
 import json
+import locale
 import subprocess
 import re
 import os
@@ -13,14 +14,18 @@ class PassRetrievalTool:
     RE_LINUX = '/etc/NetworkManager/system-connections/(.*)'
     RE_OSX = 'SSIDString = (.*);'
     PASS_OSX = 'security find-generic-password -wa '
-
+    LANGUAGE_STRINGS = {
+        "en_GB" : "Key Content",
+        "en_US" : "Key Content",
+        "es_ES" : "Contenido de la clave"
+    }
     def __init__(self):
         pass
 
     @staticmethod
     def get_pass_wind_individual(Name):
         output = subprocess.check_output(PassRetrievalTool.COMMAND_WINDOWS_GENERIC + " name=" + Name + " key=clear", shell=True)
-        output = re.findall('Contenido de la clave(.*)\n', output)[0].strip().split(':')[1].strip()
+        output = re.findall(PassRetrievalTool.getLanguageString() + '(.*)\n', output)[0].strip().split(':')[1].strip()
         return output
 
     @staticmethod
@@ -76,6 +81,12 @@ class PassRetrievalTool:
             print json.dumps(wifi_password_dictionary)
         else:
             PassRetrievalTool.print_passwords(wifi_password_dictionary)
+
+    @staticmethod
+    def getLanguageString():
+        language = locale.getdefaultlocale()[0]
+        return PassRetrievalTool.LANGUAGE_STRINGS[language]
+
 
 if __name__ == "__main__":
     pass_retrieval_tool = PassRetrievalTool()
