@@ -3,80 +3,77 @@ import re
 import os
 import sys
 
-COMMAND_LINUX = "sudo grep -r '^psk=' /etc/NetworkManager/system-connections/"
-COMMAND_OSX = "defaults read /Library/Preferences/SystemConfiguration/com.apple.airport.preferences |grep SSIDString"
-COMMAND_WINDOWS_GENERIC = "netsh wlan show profile"
-RE_LINUX = '/etc/NetworkManager/system-connections/(.*)'
-RE_OSX = 'SSIDString = (.*);'
-PASS_OSX = 'security find-generic-password -wa '
-SAVED_PASSWORDS = dict()
 
-def get_pass_wind_individual(Name):
-    output = subprocess.check_output(COMMAND_WINDOWS_GENERIC+" name="+Name+" key=clear",shell=True)
-    output = re.findall('Key Content(.*)\n',output)[0].strip().split(':')[1].strip()
-    return output
+class PassRetrievalTool:
+    # Static Variables
+    COMMAND_LINUX = "sudo grep -r '^psk=' /etc/NetworkManager/system-connections/"
+    COMMAND_OSX = "defaults read /Library/Preferences/SystemConfiguration/com.apple.airport.preferences |grep SSIDString"
+    COMMAND_WINDOWS_GENERIC = "netsh wlan show profile"
+    RE_LINUX = '/etc/NetworkManager/system-connections/(.*)'
+    RE_OSX = 'SSIDString = (.*);'
+    PASS_OSX = 'security find-generic-password -wa '
 
-def make_pass_dict():
-    if os.name=='posix':
-        try:
-            output = subprocess.check_output(COMMAND_LINUX,shell=True).split('\n')
-            for pair in output:
+    def __init__(self):
+        pass
+
+    @staticmethod
+    def get_pass_wind_individual(Name):
+        output = subprocess.check_output(PassRetrievalTool.COMMAND_WINDOWS_GENERIC + " name=" + Name + " key=clear", shell=True)
+        output = re.findall('Contenido de la clave(.*)\n', output)[0].strip().split(':')[1].strip()
+        return output
+
+    @staticmethod
+    def get_wifi_password_dictionary():
+        wifi_password_dictionary = dict()
+        if os.name == 'posix':
+            try:
+                output = subprocess.check_output(PassRetrievalTool.COMMAND_LINUX, shell=True).split('\n')
+                for pair in output:
+                    try:
+                        pair = re.findall(PassRetrievalTool.RE_LINUX, pair)[0].split(':')
+                        name = pair[0]
+                        password = pair[1].split('=')[1]
+                        wifi_password_dictionary[name] = password
+                    except:
+                        pass
+            except:
+                output = subprocess.check_output(PassRetrievalTool.COMMAND_OSX, shell=True).split('\n')
+                for pair in output:
+                    try:
+                        name = re.findall(PassRetrievalTool.RE_OSX, pair)[0]
+                        password = subprocess.check_output(PassRetrievalTool.PASS_OSX + name, shell=True)
+                        wifi_password_dictionary[name] = password
+                    except:
+                        pass
+
+
+        elif os.name == 'nt':
+            output = subprocess.check_output(PassRetrievalTool.COMMAND_WINDOWS_GENERIC, shell=True).split('\n')
+            wifi_names = list()
+            for line in output:
+                values = line.split(':')
                 try:
-                    pair = re.findall(RE_LINUX,pair)[0].split(':')
-                    Name = pair[0]
-                    Pass = pair[1].split('=')[1]
-                    SAVED_PASSWORDS[Name]=Pass
+                    wifi_names.append(values[1].strip())
                 except:
                     pass
-        except:
-            output = subprocess.check_output(COMMAND_OSX,shell=True).split('\n')
-            for pair in output:
+            for name in wifi_names:
                 try:
-                    Name = re.findall(RE_OSX,pair)[0]
-                    Pass = subprocess.check_output(PASS_OSX + Name,shell=True)
-                    print "Getting password for " + Name
-                    SAVED_PASSWORDS[Name] = Pass
+                    password = PassRetrievalTool.get_pass_wind_individual(name)
+                    wifi_password_dictionary[name] = password
                 except:
                     pass
+        return wifi_password_dictionary
 
-    elif os.name =='nt':
-        output = subprocess.check_output(COMMAND_WINDOWS_GENERIC,shell=True).split('\n')
-        Names = list()
-        for name in output:
-            name = name.split(':')
-            try:
-                Names.append(name[1].strip())
-            except:
-                pass
-        for names in Names:
-            try:
-                Password = get_pass_wind_individual(names)
-                SAVED_PASSWORDS[names]=Password
-            except:
-                pass
+    @staticmethod
+    def print_passwords(wifi_password_dictionary):
+        for name in wifi_password_dictionary.keys():
+           print "WiFi SSID: {}  - Password: {}".format(name, wifi_password_dictionary[name])
 
-def get_passwords(**kwargs):
-    if 'ssid' in kwargs:
-        if os.name=='nt':
-            try:
-                Password = get_pass_wind_individual(kwargs['ssid'])
-                print 'Network:',kwargs['ssid'],'|''Password:',Password
-            except:
-                print "No Such SSID exists"
-        else:
-            print 'Network:',kwargs['ssid'],'|''Password:',SAVED_PASSWORDS[kwargs['ssid']]
-    else:
-        for name in SAVED_PASSWORDS.keys():
-            print 'Network:',name,'|''Password:',SAVED_PASSWORDS[name]
+    def main(self):
+        wifi_password_dictionary = PassRetrievalTool.get_wifi_password_dictionary()
+        PassRetrievalTool.print_passwords(wifi_password_dictionary)
 
-def main():
-    if len(sys.argv) < 2:
-        make_pass_dict()
-        get_passwords()
-    else:
-        if os.name=='posix':
-            make_pass_dict()
-        get_passwords(ssid=sys.argv[1])
 
 if __name__ == "__main__":
-    main()
+    pass_retrieval_tool = PassRetrievalTool()
+    pass_retrieval_tool.main()
