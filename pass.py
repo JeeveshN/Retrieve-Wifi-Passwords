@@ -1,3 +1,4 @@
+import json
 import subprocess
 import re
 import os
@@ -67,12 +68,14 @@ class PassRetrievalTool:
     @staticmethod
     def print_passwords(wifi_password_dictionary):
         for name in wifi_password_dictionary.keys():
-           print "WiFi SSID: {}  - Password: {}".format(name, wifi_password_dictionary[name])
+            print "WiFi SSID: {}  - Password: {}".format(name, wifi_password_dictionary[name])
 
     def main(self):
         wifi_password_dictionary = PassRetrievalTool.get_wifi_password_dictionary()
-        PassRetrievalTool.print_passwords(wifi_password_dictionary)
-
+        if "--json" in sys.argv:
+            print json.dumps(wifi_password_dictionary)
+        else:
+            PassRetrievalTool.print_passwords(wifi_password_dictionary)
 
 if __name__ == "__main__":
     pass_retrieval_tool = PassRetrievalTool()
