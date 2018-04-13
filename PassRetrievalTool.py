@@ -29,7 +29,10 @@ class PassRetrievalTool:
         return output
 
     @staticmethod
-    def get_wifi_password_dictionary():
+    def get_all_wifi_password_dictionary():
+        return PassRetrievalTool.get_specific_wifi_password_dictionary(None)
+    @staticmethod
+    def get_specific_wifi_password_dictionary(filter_ssid):
         wifi_password_dictionary = dict()
         if os.name == 'posix':
             try:
@@ -39,6 +42,10 @@ class PassRetrievalTool:
                         pair = re.findall(PassRetrievalTool.RE_LINUX, pair)[0].split(':')
                         name = pair[0]
                         password = pair[1].split('=')[1]
+
+                        if filter_ssid and name != filter_ssid:
+                            continue # Ignore if filter is set and doesn't match
+
                         wifi_password_dictionary[name] = password
                     except:
                         pass
@@ -48,6 +55,10 @@ class PassRetrievalTool:
                     try:
                         name = re.findall(PassRetrievalTool.RE_OSX, pair)[0]
                         password = subprocess.check_output(PassRetrievalTool.PASS_OSX + name, shell=True)
+
+                        if filter_ssid and name != filter_ssid:
+                            continue # Ignore if filter is set and doesn't match
+
                         wifi_password_dictionary[name] = password
                     except:
                         pass
@@ -59,7 +70,12 @@ class PassRetrievalTool:
             for line in output:
                 values = line.split(':')
                 try:
-                    wifi_names.append(values[1].strip())
+                    name = values[1].strip()
+
+                    if filter_ssid and name != filter_ssid:
+                        continue  # Ignore if filter is set and doesn't match
+
+                    wifi_names.append(name)
                 except:
                     pass
             for name in wifi_names:
@@ -76,8 +92,32 @@ class PassRetrievalTool:
             print "WiFi SSID: {}  - Password: {}".format(name, wifi_password_dictionary[name])
 
     def main(self):
-        wifi_password_dictionary = PassRetrievalTool.get_wifi_password_dictionary()
-        if "--json" in sys.argv:
+        print_json = False
+        wifi_password_dictionary = None
+        if len(sys.argv) == 1:
+            # Regular search and print
+            wifi_password_dictionary = PassRetrievalTool.get_all_wifi_password_dictionary()
+        elif len(sys.argv) == 2:
+            # With 1 argument (either --json or custom SSID)
+            if "--json" in sys.argv:
+                # Print a json version of every SSID found
+                wifi_password_dictionary = PassRetrievalTool.get_all_wifi_password_dictionary()
+                print_json = True
+            else:
+                # Regular print with custom SSID
+                ssid = sys.argv[1]
+                wifi_password_dictionary = PassRetrievalTool.get_specific_wifi_password_dictionary(ssid)
+        elif len(sys.argv) >= 3:
+            # With 2 or more arguments (--json and customs SSID)
+            args = list(sys.argv)
+
+            if "--json" in sys.argv:
+                print_json = True
+                args.remove("--json")
+            ssid = args[1]
+            wifi_password_dictionary = PassRetrievalTool.get_specific_wifi_password_dictionary(ssid)
+
+        if print_json:
             print json.dumps(wifi_password_dictionary)
         else:
             PassRetrievalTool.print_passwords(wifi_password_dictionary)
